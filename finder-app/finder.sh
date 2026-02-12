@@ -5,6 +5,7 @@ if [ "$#" -ne 2 ]; then
   echo "Error: Two arguments are required."
   echo "Usage: $0 <directory-path> <search-string>"
   exit 1
+  
 fi
 
 filesdir=$1
