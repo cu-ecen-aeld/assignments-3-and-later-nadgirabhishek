@@ -26,3 +26,4 @@ matching_lines_count=$(grep -r "$searchstr" "$filesdir" 2>/dev/null | wc -l)
 # Print the result
 echo "The number of files are $file_count and the number of matching lines are $matching_lines_count"
 
+exit 0
