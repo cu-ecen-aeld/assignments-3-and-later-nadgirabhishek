@@ -1,5 +1,12 @@
 #include "systemcalls.h"
-
+#include <sys/wait.h>
+#include <stdio.h>
+#include <syslog.h>
+#include <errno.h>
+#include <string.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
 /**
  * @param cmd the command to execute with system()
  * @return true if the command in @param cmd was executed
@@ -16,8 +23,14 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
-
-    return true;
+ //shell avialble command null nonzero value 
+ //shell uanvialble 0
+ //-1 if child notcreated or no detials retrieved
+    if(!cmd)return false;
+    int status = system(cmd);
+    if(status == -1) return false;
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) return true;
+    return false;
 }
 
 /**
@@ -36,6 +49,10 @@ bool do_system(const char *cmd)
 
 bool do_exec(int count, ...)
 {
+    if (count < 1) {
+    va_end(args);
+    return false;
+    }
     va_list args;
     va_start(args, count);
     char * command[count+1];
@@ -58,10 +75,29 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    pid_t pid = fork();
+    if (pid < 0) {
+        va_end(args);
+        return false;
+    }
+
+    if (pid == 0) {
+        execv(command[0], command);
+        _exit(127);
+    }
+
+    int status;
+    if (waitpid(pid, &status, 0) < 0) {
+        va_end(args);
+        return false;
+    }
 
     va_end(args);
 
-    return true;
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+        return true;
+    }
+    return false;
 }
 
 /**
@@ -92,8 +128,42 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    int fd = open(outputfile, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+    if (fd < 0) {
+        va_end(args);
+        return false;
+    }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(fd);
+        va_end(args);
+        return false;
+    }
+
+    if (pid == 0) {
+        if (dup2(fd, STDOUT_FILENO) < 0) {
+            _exit(127);
+        }
+        close(fd);
+
+        execv(command[0], command);
+        _exit(127);
+    }
+
+    /* parent */
+    close(fd);
+
+    int status;
+    if (waitpid(pid, &status, 0) < 0) {
+        va_end(args);
+        return false;
+    }
 
     va_end(args);
 
-    return true;
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+        return true;
+    }
+    return false;
 }
