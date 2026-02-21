@@ -49,12 +49,13 @@ bool do_system(const char *cmd)
 
 bool do_exec(int count, ...)
 {
+    
+    va_list args;
+    va_start(args, count);
     if (count < 1) {
     va_end(args);
     return false;
     }
-    va_list args;
-    va_start(args, count);
     char * command[count+1];
     int i;
     for(i=0; i<count; i++)
